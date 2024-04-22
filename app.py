@@ -1,10 +1,6 @@
 import streamlit as st
 import vectorsearch
 
-# To display this specific news item:
-
-
-
 class User:
     """
     Represents a comprehensive user profile, detailing personal, economic, family, and lifestyle
@@ -43,6 +39,16 @@ class User:
         self.hobbies = hobbies or []
         self.zip_code = zip_code
 
+    def update_profile(self, **kwargs) -> None:
+        """
+        Update profile attributes based on key-value pairs provided as arguments.
+
+        Args:
+            **kwargs: Arbitrary keyword arguments corresponding to user attributes.
+        """
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
 def main():
     st.set_page_config(page_title="Legislative Impact Advisor", layout="wide", initial_sidebar_state="collapsed")
     
@@ -54,11 +60,13 @@ def main():
         that directly affects your life and finances. It simplifies the complexities of legislative impacts,
         ensuring you're well-informed and prepared for any changes.
     """)
-    
-    user_name = st.text_input("Please enter your name and press [ENTER] to continue:")
-    if user_name:
-        user = User(name=user_name)
-        print(user_name)
+
+    if 'user' not in st.session_state:
+        user_name = st.text_input("Please enter your name and press [ENTER] to continue:")
+        if user_name:
+            st.session_state['user'] = User(name=user_name)
+    else:
+        user = st.session_state['user']
     # Layout: three columns (News, Chat, Preferences)
     chat_col, news_col = st.columns([1, 1])
 
@@ -68,16 +76,13 @@ def main():
     output = ""
     with chat_col:
         st.subheader("Chat Interface")
-        if not user_name:
-            user = User(name="Ed")
-            output = handle_chat(user)
-        else:
-            output = handle_chat(user)
+        if 'user' in st.session_state:
+            output = handle_chat(st.session_state['user'])
         if len(output) > 0:
             st.text_area("Answer:", value=output, height=300)
     st.sidebar.title("User Preferences")
-    if user:
-        display_preferences(user)
+    if 'user' in st.session_state:
+        display_preferences(st.session_state['user'])
 
 def display_news():
     
@@ -110,7 +115,7 @@ def handle_chat(user):
     if(len(input) > 0):
         if (user):
             user_preference_str = """
-            Given that {username} employment status is: {estatus}
+            Given that my employment status is: {estatus}
             My industry is {industry},
             my education level is {edulevel}
             my home ownership status is {home}
@@ -123,9 +128,10 @@ def handle_chat(user):
 
             Answer the following question (you must give me a response):
 
-            """.format(username=user.name, estatus=user.employment_status, industry=user.industry, edulevel=user.education_level, home=user.home_ownership, ndependents=user.number_of_dependents, mstatus=user.marital_status, 
+            """.format(estatus=user.employment_status, industry=user.industry, edulevel=user.education_level, home=user.home_ownership, ndependents=user.number_of_dependents, mstatus=user.marital_status, 
                     healthstatus=user.health_status, palignment=user.political_alignment, hobbies=user.hobbies, zipcode=user.zip_code)
-            input = input + user_preference_str
+            input = " ".join([user_preference_str, input])
+            print("Query text is: " + input)
         return vectorsearch.query(input)
     return ""
 
@@ -164,10 +170,8 @@ def display_preferences(user: User):
             hobbies=hobbies.split(', '),
             zip_code=zip_code
         )
+        st.session_state['user'] = user
         st.sidebar.success("Your preferences have been updated!")
-
-
-
 
 if __name__ == "__main__":
     main()
